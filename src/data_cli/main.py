@@ -1,14 +1,14 @@
 import os
 from pathlib import Path
+from typing import Iterator
 
 import typer
 from rich.console import Console
 from rich.panel import Panel
 
-from data_cli.io.reader import read_csv
+from data_cli.io.reader import read_csv_lazy
 from data_cli.io.writer import write_csv
-from data_cli.core.processor import process_records
-from data_cli.core.models import DataRecord
+from data_cli.core.models import AdRecord, process_records
 
 app = typer.Typer(help="Data CLI - A data processing tool")
 console = Console()
@@ -40,19 +40,15 @@ def validate_params(input_path: Path, output_path: Path) -> None:
         raise ValidationError(f"Output directory '{output_path}' is not writable", "Permission Error")
 
 
-def process_data(input_file: Path) -> list[DataRecord]:
+def process_data(input_file: Path) -> Iterator[AdRecord]:
     console.print(f"[blue]Reading data from: {input_file}[/blue]")
-    records = read_csv(str(input_file))
-    console.print(f"[blue]Read {len(records)} records[/blue]")
+    records = read_csv_lazy(str(input_file))
 
     console.print("[blue]Processing data...[/blue]")
-    processed = process_records(records)
-    console.print(f"[blue]Processed {len(processed)} records[/blue]")
-
-    return processed
+    yield from process_records(records)
 
 
-def generate_output(records: list[DataRecord], output_dir: Path, input_file: Path) -> Path:
+def generate_output(records: Iterator[AdRecord], output_dir: Path, input_file: Path) -> Path:
     output_file = output_dir / f"{input_file.stem}_processed.csv"
     console.print(f"[blue]Writing output to: {output_file}[/blue]")
     write_csv(str(output_file), records)

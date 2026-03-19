@@ -36,3 +36,24 @@ Separate the code into modular functions: parameter validation, data processing,
 
 # Prompt 5: 
 Writ unit tests for each function, handle all cases: happy case, missing required arguments, input file existence, input file type csv, invalid output path, etc. Make sure it all tests are passed
+
+# Prompt 6:
+Help me implement reading data from the csv file. Here's the expected input file columns: 
+Column	Type	Description
+campaign_id	string	Campaign ID
+date	string	Date in YYYY-MM-DD format
+impressions	integer	Number of impressions
+clicks	integer	Number of clicks
+spend	float	Advertising cost (USD)
+conversions	integer	Number of conversions 
+For float, make sure to use Decimal for precision. I want to read the file lazily with stream.
+
+# Prompt 7:
+Implement data processing: For each campaign_id, compute:
+total_impressions
+total_clicks
+total_spend
+total_conversions
+CTR = total_clicks / total_impressions
+CPA = total_spend / total_conversions
+If conversions = 0, ignore or return null for CPA

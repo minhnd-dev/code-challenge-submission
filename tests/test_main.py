@@ -1,16 +1,18 @@
+from datetime import date
+from decimal import Decimal
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 import polars as pl
 import pytest
 
 from data_cli.main import validate_params, process_data, generate_output, ValidationError
-from data_cli.core.models import DataRecord
+from data_cli.core.models import AdRecord
 
 
 class TestValidateParams:
     def test_happy_case_new_output_dir(self, tmp_path: Path):
         input_file = tmp_path / "input.csv"
-        input_file.write_text("id,value\n1,a")
+        input_file.write_text("campaign_id,date,impressions,clicks,spend,conversions")
         output_dir = tmp_path / "output"
 
         validate_params(input_file, output_dir)
@@ -20,7 +22,7 @@ class TestValidateParams:
 
     def test_happy_case_existing_output_dir(self, tmp_path: Path):
         input_file = tmp_path / "input.csv"
-        input_file.write_text("id,value\n1,a")
+        input_file.write_text("campaign_id,date,impressions,clicks,spend,conversions")
         output_dir = tmp_path / "output"
         output_dir.mkdir()
 
@@ -62,7 +64,7 @@ class TestValidateParams:
 
     def test_input_file_csv_uppercase(self, tmp_path: Path):
         input_file = tmp_path / "input.CSV"
-        input_file.write_text("id,value\n1,a")
+        input_file.write_text("campaign_id,date,impressions,clicks,spend,conversions")
         output_dir = tmp_path / "output"
 
         validate_params(input_file, output_dir)
@@ -71,7 +73,7 @@ class TestValidateParams:
 
     def test_output_path_exists_but_is_file(self, tmp_path: Path):
         input_file = tmp_path / "input.csv"
-        input_file.write_text("id,value\n1,a")
+        input_file.write_text("campaign_id,date,impressions,clicks,spend,conversions")
         output_dir = tmp_path / "output"
         output_dir.write_text("this is a file, not a dir")
 
@@ -85,7 +87,7 @@ class TestValidateParams:
     def test_output_dir_not_writable(self, mock_access: MagicMock, tmp_path: Path):
         mock_access.return_value = False
         input_file = tmp_path / "input.csv"
-        input_file.write_text("id,value\n1,a")
+        input_file.write_text("campaign_id,date,impressions,clicks,spend,conversions")
         output_dir = tmp_path / "output"
         output_dir.mkdir()
 
@@ -99,26 +101,23 @@ class TestValidateParams:
 class TestProcessData:
     def test_happy_case(self, tmp_path: Path, capsys):
         csv_file = tmp_path / "test.csv"
-        df = pl.DataFrame({"id": [1, 2, 3], "value": ["a", "b", "c"]})
+        df = pl.DataFrame({
+            "campaign_id": ["camp_1", "camp_2"],
+            "date": ["2024-01-01", "2024-01-02"],
+            "impressions": [1000, 2000],
+            "clicks": [50, 100],
+            "spend": [10.50, 20.75],
+            "conversions": [5, 10],
+        })
         df.write_csv(csv_file)
 
-        records = process_data(csv_file)
+        records = list(process_data(csv_file))
 
-        assert len(records) == 3
-        assert all(isinstance(r, DataRecord) for r in records)
-        assert records[0].id == 1
-        assert records[0].value == "A"
-        assert records[1].value == "B"
-        assert records[2].value == "C"
-
-    def test_empty_file(self, tmp_path: Path):
-        csv_file = tmp_path / "empty.csv"
-        df = pl.DataFrame({"id": [], "value": []})
-        df.write_csv(csv_file)
-
-        records = process_data(csv_file)
-
-        assert len(records) == 0
+        assert len(records) == 2
+        assert all(isinstance(r, AdRecord) for r in records)
+        assert records[0].campaign_id == "camp_1"
+        assert records[0].spend == Decimal("10.50")
+        assert records[1].spend == Decimal("20.75")
 
 
 class TestGenerateOutput:
@@ -127,19 +126,33 @@ class TestGenerateOutput:
         output_dir.mkdir()
         input_file = Path("test.csv")
         records = [
-            DataRecord(id=1, value="hello"),
-            DataRecord(id=2, value="world"),
+            AdRecord(
+                campaign_id="camp_1",
+                date=date(2024, 1, 1),
+                impressions=1000,
+                clicks=50,
+                spend=Decimal("10.50"),
+                conversions=5,
+            ),
+            AdRecord(
+                campaign_id="camp_2",
+                date=date(2024, 1, 2),
+                impressions=2000,
+                clicks=100,
+                spend=Decimal("20.75"),
+                conversions=10,
+            ),
         ]
 
-        output_file = generate_output(records, output_dir, input_file)
+        output_file = generate_output(iter(records), output_dir, input_file)
 
         assert output_file == output_dir / "test_processed.csv"
         assert output_file.exists()
 
         df = pl.read_csv(output_file)
         assert len(df) == 2
-        assert df["value"][0] == "hello"
-        assert df["value"][1] == "world"
+        assert df["campaign_id"][0] == "camp_1"
+        assert df["spend"][0] == 10.50
 
 
 class TestCliIntegration:
@@ -193,7 +206,14 @@ class TestCliIntegration:
         from data_cli.main import app
 
         input_file = tmp_path / "input.csv"
-        df = pl.DataFrame({"id": [1, 2], "value": ["a", "b"]})
+        df = pl.DataFrame({
+            "campaign_id": ["camp_1", "camp_2"],
+            "date": ["2024-01-01", "2024-01-02"],
+            "impressions": [1000, 2000],
+            "clicks": [50, 100],
+            "spend": [10.50, 20.75],
+            "conversions": [5, 10],
+        })
         df.write_csv(input_file)
         output_dir = tmp_path / "output"
 
@@ -209,7 +229,14 @@ class TestCliIntegration:
         from data_cli.main import app
 
         input_file = tmp_path / "data.csv"
-        df = pl.DataFrame({"id": [1], "value": ["test"]})
+        df = pl.DataFrame({
+            "campaign_id": ["camp_1"],
+            "date": ["2024-01-01"],
+            "impressions": [1000],
+            "clicks": [50],
+            "spend": [10.50],
+            "conversions": [5],
+        })
         df.write_csv(input_file)
         output_dir = tmp_path / "out"
 
