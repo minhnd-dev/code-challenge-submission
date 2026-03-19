@@ -122,7 +122,6 @@ class TestGenerateTopCtrOutput:
     def test_happy_case(self, tmp_path: Path):
         output_dir = tmp_path / "output"
         output_dir.mkdir()
-        input_file = Path("test.csv")
         stats = [
             CampaignStats(
                 campaign_id="low_ctr",
@@ -144,21 +143,22 @@ class TestGenerateTopCtrOutput:
             ),
         ]
 
-        output_file = generate_top_ctr_output(stats, output_dir, input_file)
+        output_file = generate_top_ctr_output(stats, output_dir)
 
-        assert output_file == output_dir / "test_top_ctr.csv"
+        assert output_file == output_dir / "top10_ctr.csv"
         assert output_file.exists()
 
         df = pl.read_csv(output_file)
         assert len(df) == 2
         assert df["campaign_id"][0] == "high_ctr"
+        assert float(df["CTR"][0]) == pytest.approx(0.1, rel=0.001)
+        assert float(df["total_spend"][0]) == pytest.approx(10.0, abs=0.01)
 
 
 class TestGenerateTopCpaOutput:
     def test_happy_case(self, tmp_path: Path):
         output_dir = tmp_path / "output"
         output_dir.mkdir()
-        input_file = Path("test.csv")
         stats = [
             CampaignStats(
                 campaign_id="high_cpa",
@@ -180,14 +180,15 @@ class TestGenerateTopCpaOutput:
             ),
         ]
 
-        output_file = generate_top_cpa_output(stats, output_dir, input_file)
+        output_file = generate_top_cpa_output(stats, output_dir)
 
-        assert output_file == output_dir / "test_top_cpa.csv"
+        assert output_file == output_dir / "top10_cpa.csv"
         assert output_file.exists()
 
         df = pl.read_csv(output_file)
         assert len(df) == 2
         assert df["campaign_id"][0] == "low_cpa"
+        assert float(df["CPA"][0]) == pytest.approx(10.0, abs=0.01)
 
 
 class TestCliIntegration:
@@ -257,8 +258,8 @@ class TestCliIntegration:
 
         assert result.exit_code == 0
         assert "Successfully processed data" in result.output
-        assert (output_dir / "input_top_ctr.csv").exists()
-        assert (output_dir / "input_top_cpa.csv").exists()
+        assert (output_dir / "top10_ctr.csv").exists()
+        assert (output_dir / "top10_cpa.csv").exists()
 
     def test_successful_processing_with_short_flags(self, tmp_path: Path):
         from typer.testing import CliRunner
@@ -280,5 +281,5 @@ class TestCliIntegration:
         result = runner.invoke(app, ["-i", str(input_file), "-o", str(output_dir)])
 
         assert result.exit_code == 0
-        assert (output_dir / "data_top_ctr.csv").exists()
-        assert (output_dir / "data_top_cpa.csv").exists()
+        assert (output_dir / "top10_ctr.csv").exists()
+        assert (output_dir / "top10_cpa.csv").exists()

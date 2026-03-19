@@ -52,17 +52,17 @@ def process_data(input_file: Path) -> List[CampaignStats]:
     return stats
 
 
-def generate_top_ctr_output(stats: List[CampaignStats], output_dir: Path, input_file: Path) -> Path:
+def generate_top_ctr_output(stats: List[CampaignStats], output_dir: Path) -> Path:
     top_ctr = get_top_ctr_campaigns(stats)
-    output_file = output_dir / f"{input_file.stem}_top_ctr.csv"
+    output_file = output_dir / "top10_ctr.csv"
     console.print(f"[blue]Writing top CTR campaigns to: {output_file}[/blue]")
     write_campaign_stats_csv(str(output_file), top_ctr)
     return output_file
 
 
-def generate_top_cpa_output(stats: List[CampaignStats], output_dir: Path, input_file: Path) -> Path:
+def generate_top_cpa_output(stats: List[CampaignStats], output_dir: Path) -> Path:
     top_cpa = get_top_cpa_campaigns(stats)
-    output_file = output_dir / f"{input_file.stem}_top_cpa.csv"
+    output_file = output_dir / "top10_cpa.csv"
     console.print(f"[blue]Writing top CPA campaigns to: {output_file}[/blue]")
     write_campaign_stats_csv(str(output_file), top_cpa)
     return output_file
@@ -79,8 +79,8 @@ def main(
     try:
         validate_params(input_path, output_path)
         stats = process_data(input_path)
-        top_ctr_file = generate_top_ctr_output(stats, output_path, input_path)
-        top_cpa_file = generate_top_cpa_output(stats, output_path, input_path)
+        top_ctr_file = generate_top_ctr_output(stats, output_path)
+        top_cpa_file = generate_top_cpa_output(stats, output_path)
         console.print(Panel(
             f"[green]Successfully processed data![/green]\nInput: {input}\nTop CTR: {top_ctr_file}\nTop CPA: {top_cpa_file}",
             title="Success",
