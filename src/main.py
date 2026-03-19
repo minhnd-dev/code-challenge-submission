@@ -6,12 +6,12 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 
-from data_cli.io.writer import write_campaign_stats_csv
-from data_cli.core.models import (
+from processor import (
     CampaignStats,
     compute_campaign_stats_lazy,
     get_top_ctr_campaigns,
     get_top_cpa_campaigns,
+    write_campaign_stats_csv
 )
 
 app = typer.Typer(help="Data CLI - A data processing tool")

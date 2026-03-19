@@ -4,8 +4,8 @@ from unittest.mock import patch, MagicMock
 import polars as pl
 import pytest
 
-from data_cli.main import validate_params, ValidationError, process_data, generate_top_ctr_output, generate_top_cpa_output
-from data_cli.core.models import CampaignStats
+from src.main import validate_params, ValidationError, process_data, generate_top_ctr_output, generate_top_cpa_output, app
+from src.processor import CampaignStats
 
 
 class TestValidateParams:
@@ -82,7 +82,7 @@ class TestValidateParams:
         assert "not a directory" in str(exc_info.value.args[0])
         assert exc_info.value.args[1] == "Invalid Output"
 
-    @patch("data_cli.main.os.access")
+    @patch("src.main.os.access")
     def test_output_dir_not_writable(self, mock_access: MagicMock, tmp_path: Path):
         mock_access.return_value = False
         input_file = tmp_path / "input.csv"
@@ -194,7 +194,7 @@ class TestGenerateTopCpaOutput:
 class TestCliIntegration:
     def test_missing_input_argument(self):
         from typer.testing import CliRunner
-        from data_cli.main import app
+        from src.main import app
 
         runner = CliRunner()
         result = runner.invoke(app, ["--output", "output"])
@@ -205,7 +205,7 @@ class TestCliIntegration:
 
     def test_missing_output_argument(self):
         from typer.testing import CliRunner
-        from data_cli.main import app
+        from src.main import app
 
         runner = CliRunner()
         result = runner.invoke(app, ["--input", "input.csv"])
@@ -216,7 +216,7 @@ class TestCliIntegration:
 
     def test_invalid_input_file(self):
         from typer.testing import CliRunner
-        from data_cli.main import app
+        from src.main import app
 
         runner = CliRunner()
         result = runner.invoke(app, ["--input", "nonexistent.csv", "--output", "output"])
@@ -226,7 +226,7 @@ class TestCliIntegration:
 
     def test_invalid_input_type(self, tmp_path: Path):
         from typer.testing import CliRunner
-        from data_cli.main import app
+        from src.main import app
 
         input_file = tmp_path / "input.txt"
         input_file.write_text("data")
@@ -239,7 +239,7 @@ class TestCliIntegration:
 
     def test_successful_processing(self, tmp_path: Path):
         from typer.testing import CliRunner
-        from data_cli.main import app
+        from src.main import app
 
         input_file = tmp_path / "input.csv"
         df = pl.DataFrame({
@@ -263,7 +263,7 @@ class TestCliIntegration:
 
     def test_successful_processing_with_short_flags(self, tmp_path: Path):
         from typer.testing import CliRunner
-        from data_cli.main import app
+        from src.main import app
 
         input_file = tmp_path / "data.csv"
         df = pl.DataFrame({

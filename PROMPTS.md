@@ -57,3 +57,23 @@ total_conversions
 CTR = total_clicks / total_impressions
 CPA = total_spend / total_conversions
 If conversions = 0, ignore or return null for CPA
+At the end, I want to returns top 10 campaigns with the best CTR (order by CTR desc), top 10 campaigns with the best CPA (order by CPA asc). 
+Both with the following cols: campaign_id	total_impressions	total_clicks	total_spend	total_conversions	CTR	CPA
+
+# Prompt 8:
+ctr and cpa should be Decimal. in your code, you read everything into data. It won't be able to take advantage of the scan_csv with stream. The file is very heavy (>1GB), make sure it uses memory efficiently.
+
+# Prompt 9:
+Implement output generation. I want to write 2 files into the output_folder: top10_ctr.csv, top10_cpa.csv. total spend round to 2 decimal places, CTR to 4 decimal places, and CPA to 2 decimal places
+
+# Prompt 10:
+Help me review the project structure as a senior software engineer. I believe it's overengineered for a simple script
+
+# Prompt 11:
+I just restructured the project. Help me fix the tests, the imports won't work correctly anymore. I don't change the code itself so only the imports should be affected
+
+# Prompt 12:
+I want to benchmark a python cli program. I'm using macos. I want to measure speed, peak RAM usage, what's the best way to do this?
+
+# Prompt 13:
+Help me add to @README.md these info: Setup instructions, How to run the program, Libraries used, System info (os, chip, ram, ssd type, etc) 

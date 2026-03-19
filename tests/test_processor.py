@@ -3,11 +3,12 @@ from pathlib import Path
 import polars as pl
 import pytest
 
-from data_cli.core.models import (
+from src.processor import (
     CampaignStats,
     compute_campaign_stats_lazy,
     get_top_ctr_campaigns,
     get_top_cpa_campaigns,
+    write_campaign_stats_csv,
 )
 
 
@@ -128,7 +129,6 @@ class TestGetTopCpaCampaigns:
 
 class TestWriter:
     def test_write_campaign_stats_csv(self, tmp_path: Path):
-        from data_cli.io.writer import write_campaign_stats_csv
 
         output_file = tmp_path / "output.csv"
         stats = [

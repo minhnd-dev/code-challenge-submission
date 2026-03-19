@@ -1,5 +1,5 @@
 from decimal import Decimal
-from typing import Optional
+from typing import Optional, List
 from dataclasses import dataclass
 
 import polars as pl
@@ -65,3 +65,19 @@ def get_top_ctr_campaigns(stats: list[CampaignStats], n: int = 10) -> list[Campa
 def get_top_cpa_campaigns(stats: list[CampaignStats], n: int = 10) -> list[CampaignStats]:
     valid_stats = [s for s in stats if s.cpa is not None]
     return sorted(valid_stats, key=lambda x: x.cpa)[:n]
+
+def write_campaign_stats_csv(path: str, stats: List[CampaignStats]) -> None:
+    data = []
+    for stat in stats:
+        row = {
+            "campaign_id": stat.campaign_id,
+            "total_impressions": stat.total_impressions,
+            "total_clicks": stat.total_clicks,
+            "total_spend": f"{stat.total_spend:.2f}",
+            "total_conversions": stat.total_conversions,
+            "CTR": f"{stat.ctr:.4f}",
+            "CPA": f"{stat.cpa:.2f}" if stat.cpa is not None else "",
+        }
+        data.append(row)
+    df = pl.DataFrame(data)
+    df.write_csv(path)
