@@ -1,12 +1,11 @@
-from datetime import date
 from decimal import Decimal
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 import polars as pl
 import pytest
 
-from data_cli.main import validate_params, process_data, generate_output, ValidationError
-from data_cli.core.models import AdRecord
+from data_cli.main import validate_params, ValidationError, process_data, generate_top_ctr_output, generate_top_cpa_output
+from data_cli.core.models import CampaignStats
 
 
 class TestValidateParams:
@@ -99,7 +98,7 @@ class TestValidateParams:
 
 
 class TestProcessData:
-    def test_happy_case(self, tmp_path: Path, capsys):
+    def test_happy_case(self, tmp_path: Path):
         csv_file = tmp_path / "test.csv"
         df = pl.DataFrame({
             "campaign_id": ["camp_1", "camp_2"],
@@ -111,48 +110,84 @@ class TestProcessData:
         })
         df.write_csv(csv_file)
 
-        records = list(process_data(csv_file))
+        stats = process_data(csv_file)
 
-        assert len(records) == 2
-        assert all(isinstance(r, AdRecord) for r in records)
-        assert records[0].campaign_id == "camp_1"
-        assert records[0].spend == Decimal("10.50")
-        assert records[1].spend == Decimal("20.75")
+        assert len(stats) == 2
+        assert all(isinstance(s, CampaignStats) for s in stats)
+        assert stats[0].ctr == Decimal("50") / Decimal("1000")
+        assert stats[1].ctr == Decimal("100") / Decimal("2000")
 
 
-class TestGenerateOutput:
+class TestGenerateTopCtrOutput:
     def test_happy_case(self, tmp_path: Path):
         output_dir = tmp_path / "output"
         output_dir.mkdir()
         input_file = Path("test.csv")
-        records = [
-            AdRecord(
-                campaign_id="camp_1",
-                date=date(2024, 1, 1),
-                impressions=1000,
-                clicks=50,
-                spend=Decimal("10.50"),
-                conversions=5,
+        stats = [
+            CampaignStats(
+                campaign_id="low_ctr",
+                total_impressions=1000,
+                total_clicks=10,
+                total_spend=Decimal("10"),
+                total_conversions=1,
+                ctr=Decimal("10") / Decimal("1000"),
+                cpa=Decimal("10") / Decimal("1"),
             ),
-            AdRecord(
-                campaign_id="camp_2",
-                date=date(2024, 1, 2),
-                impressions=2000,
-                clicks=100,
-                spend=Decimal("20.75"),
-                conversions=10,
+            CampaignStats(
+                campaign_id="high_ctr",
+                total_impressions=100,
+                total_clicks=10,
+                total_spend=Decimal("10"),
+                total_conversions=1,
+                ctr=Decimal("10") / Decimal("100"),
+                cpa=Decimal("10") / Decimal("1"),
             ),
         ]
 
-        output_file = generate_output(iter(records), output_dir, input_file)
+        output_file = generate_top_ctr_output(stats, output_dir, input_file)
 
-        assert output_file == output_dir / "test_processed.csv"
+        assert output_file == output_dir / "test_top_ctr.csv"
         assert output_file.exists()
 
         df = pl.read_csv(output_file)
         assert len(df) == 2
-        assert df["campaign_id"][0] == "camp_1"
-        assert df["spend"][0] == 10.50
+        assert df["campaign_id"][0] == "high_ctr"
+
+
+class TestGenerateTopCpaOutput:
+    def test_happy_case(self, tmp_path: Path):
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        input_file = Path("test.csv")
+        stats = [
+            CampaignStats(
+                campaign_id="high_cpa",
+                total_impressions=100,
+                total_clicks=10,
+                total_spend=Decimal("100"),
+                total_conversions=1,
+                ctr=Decimal("10") / Decimal("100"),
+                cpa=Decimal("100") / Decimal("1"),
+            ),
+            CampaignStats(
+                campaign_id="low_cpa",
+                total_impressions=100,
+                total_clicks=10,
+                total_spend=Decimal("10"),
+                total_conversions=1,
+                ctr=Decimal("10") / Decimal("100"),
+                cpa=Decimal("10") / Decimal("1"),
+            ),
+        ]
+
+        output_file = generate_top_cpa_output(stats, output_dir, input_file)
+
+        assert output_file == output_dir / "test_top_cpa.csv"
+        assert output_file.exists()
+
+        df = pl.read_csv(output_file)
+        assert len(df) == 2
+        assert df["campaign_id"][0] == "low_cpa"
 
 
 class TestCliIntegration:
@@ -222,7 +257,8 @@ class TestCliIntegration:
 
         assert result.exit_code == 0
         assert "Successfully processed data" in result.output
-        assert (output_dir / "input_processed.csv").exists()
+        assert (output_dir / "input_top_ctr.csv").exists()
+        assert (output_dir / "input_top_cpa.csv").exists()
 
     def test_successful_processing_with_short_flags(self, tmp_path: Path):
         from typer.testing import CliRunner
@@ -244,4 +280,5 @@ class TestCliIntegration:
         result = runner.invoke(app, ["-i", str(input_file), "-o", str(output_dir)])
 
         assert result.exit_code == 0
-        assert (output_dir / "data_processed.csv").exists()
+        assert (output_dir / "data_top_ctr.csv").exists()
+        assert (output_dir / "data_top_cpa.csv").exists()

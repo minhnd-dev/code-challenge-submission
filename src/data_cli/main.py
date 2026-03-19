@@ -1,14 +1,18 @@
 import os
 from pathlib import Path
-from typing import Iterator
+from typing import List
 
 import typer
 from rich.console import Console
 from rich.panel import Panel
 
-from data_cli.io.reader import read_csv_lazy
-from data_cli.io.writer import write_csv
-from data_cli.core.models import AdRecord, process_records
+from data_cli.io.writer import write_campaign_stats_csv
+from data_cli.core.models import (
+    CampaignStats,
+    compute_campaign_stats_lazy,
+    get_top_ctr_campaigns,
+    get_top_cpa_campaigns,
+)
 
 app = typer.Typer(help="Data CLI - A data processing tool")
 console = Console()
@@ -40,18 +44,27 @@ def validate_params(input_path: Path, output_path: Path) -> None:
         raise ValidationError(f"Output directory '{output_path}' is not writable", "Permission Error")
 
 
-def process_data(input_file: Path) -> Iterator[AdRecord]:
-    console.print(f"[blue]Reading data from: {input_file}[/blue]")
-    records = read_csv_lazy(str(input_file))
+def process_data(input_file: Path) -> List[CampaignStats]:
+    console.print(f"[blue]Reading and computing statistics from: {input_file}[/blue]")
+    console.print("[blue]Using streaming mode for memory efficiency...[/blue]")
+    stats = compute_campaign_stats_lazy(str(input_file))
+    console.print(f"[blue]Computed statistics for {len(stats)} campaigns[/blue]")
+    return stats
 
-    console.print("[blue]Processing data...[/blue]")
-    yield from process_records(records)
+
+def generate_top_ctr_output(stats: List[CampaignStats], output_dir: Path, input_file: Path) -> Path:
+    top_ctr = get_top_ctr_campaigns(stats)
+    output_file = output_dir / f"{input_file.stem}_top_ctr.csv"
+    console.print(f"[blue]Writing top CTR campaigns to: {output_file}[/blue]")
+    write_campaign_stats_csv(str(output_file), top_ctr)
+    return output_file
 
 
-def generate_output(records: Iterator[AdRecord], output_dir: Path, input_file: Path) -> Path:
-    output_file = output_dir / f"{input_file.stem}_processed.csv"
-    console.print(f"[blue]Writing output to: {output_file}[/blue]")
-    write_csv(str(output_file), records)
+def generate_top_cpa_output(stats: List[CampaignStats], output_dir: Path, input_file: Path) -> Path:
+    top_cpa = get_top_cpa_campaigns(stats)
+    output_file = output_dir / f"{input_file.stem}_top_cpa.csv"
+    console.print(f"[blue]Writing top CPA campaigns to: {output_file}[/blue]")
+    write_campaign_stats_csv(str(output_file), top_cpa)
     return output_file
 
 
@@ -65,9 +78,13 @@ def main(
 
     try:
         validate_params(input_path, output_path)
-        processed = process_data(input_path)
-        output_file = generate_output(processed, output_path, input_path)
-        console.print(Panel(f"[green]Successfully processed data![/green]\nInput: {input}\nOutput: {output_file}", title="Success"))
+        stats = process_data(input_path)
+        top_ctr_file = generate_top_ctr_output(stats, output_path, input_path)
+        top_cpa_file = generate_top_cpa_output(stats, output_path, input_path)
+        console.print(Panel(
+            f"[green]Successfully processed data![/green]\nInput: {input}\nTop CTR: {top_ctr_file}\nTop CPA: {top_cpa_file}",
+            title="Success",
+        ))
 
     except ValidationError as e:
         message, title = e.args[0], e.args[1]
