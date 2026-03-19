@@ -1,4 +1,3 @@
-import pytest
 from data_cli.core.models import DataRecord, process_record, process_records
 
 

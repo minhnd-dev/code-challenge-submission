@@ -1,4 +1,3 @@
-import pytest
 from pathlib import Path
 import polars as pl
 from data_cli.io.reader import read_csv
